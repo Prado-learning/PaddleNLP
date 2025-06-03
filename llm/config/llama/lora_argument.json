@@ -32,5 +32,13 @@
     "use_flash_attention": true,
     "unified_checkpoint": true,
     "pissa": false,
-    "use_mora": false
-  }
+    "use_mora": false,
+    "sorsa": true,
+    "sorsa_rank": 8,
+    "sorsa_alpha": 16,
+    "sorsa_dropout": 0.1,
+    "sorsa_target_modules": ["q", "k", "v"],
+    "sorsa_base_model_name_or_path": "meta-llama/Meta-Llama-3-8B",
+    "sorsa_merge_weights": true,
+    "sorsa_dtype": "float32"
+}

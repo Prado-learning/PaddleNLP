@@ -69,6 +69,8 @@ from paddlenlp.utils.import_utils import (
     is_paddlenlp_ops_available,
 )
 from paddlenlp.utils.log import logger
+from utils.argument import SorsaArgument
+from paddlenlp.peft.sorsa import SORSAConfig, SORSAModel
 
 
 @dataclass
@@ -1823,6 +1825,7 @@ class AutoPredictor:
         model_args: ModelArgument,
         tokenizer: PretrainedTokenizer = None,
         model: PretrainedModel = None,
+        sorsa_args: SorsaArgument = None,
         **kwargs,
     ):
         """
@@ -1879,6 +1882,7 @@ class AutoPredictor:
             cache_v_shapes=cache_v_shapes,
             cache_kvs_shape=cache_kvs_shape,
             model_args=model_args,
+            sorsa_args=sorsa_args,
             **kwargs,
         )
         return predictor

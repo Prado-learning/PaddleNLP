@@ -100,3 +100,19 @@ class EmbeddingArgument:
         default=64,
         metadata={"help": "The size of the head dimension when gpu ops are set as 'inf_cl'."},
     )
+
+
+@dataclass
+class SorsaArgument:
+    """
+    SORSA参数配置类。用于参数高效微调（PEFT）算法 SORSA。
+    包含矩阵秩、缩放因子、dropout、目标模块、基础模型路径、权重合并、数据类型、gamma等参数。
+    """
+    rank: int = field(default=4, metadata={"help": "SORSA矩阵秩（低秩分解的秩）"})
+    alpha: Optional[float] = field(default=None, metadata={"help": "SORSA缩放因子，若为None则不缩放"})
+    dropout: float = field(default=0.0, metadata={"help": "SORSA dropout概率"})
+    target_modules: Optional[List[str]] = field(default=None, metadata={"help": "需要替换为SORSA的模块名，如['query', 'key', 'value']"})
+    base_model_name_or_path: Optional[str] = field(default=None, metadata={"help": "基础模型名或路径"})
+    merge_weights: bool = field(default=True, metadata={"help": "推理时是否merge权重"})
+    dtype: Optional[str] = field(default=None, metadata={"help": "张量数据类型"})
+    gamma: float = field(default=0.0, metadata={"help": "SORSA的gamma超参数（正则化强度）"})

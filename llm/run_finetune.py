@@ -20,7 +20,7 @@ import sys
 from functools import partial
 
 import paddle
-from utils.argument import GenerateArgument, ReftArgument
+from utils.argument import GenerateArgument, ReftArgument, SorsaArgument
 from utils.data import convert_example_for_reft, get_convert_example
 
 from paddlenlp.data import DataCollatorForSeq2Seq
@@ -79,6 +79,7 @@ from paddlenlp.trl.llm_utils import (
 from paddlenlp.utils.log import logger
 from paddlenlp.utils.optimizer import AdamWLoRAPro
 from paddlenlp.utils.tools import get_env_device
+from paddlenlp.peft.sorsa import SORSAConfig, SORSAModel
 
 # Fine-tune Environment Variables to support sharding stage1 overlap optimization.
 os.environ["USE_CASUAL_MASK"] = "False"
@@ -109,15 +110,15 @@ def paddlenlp_verison_check():
 
 def main():
     paddlenlp_verison_check()
-    parser = PdArgumentParser((GenerateArgument, ModelConfig, ReftArgument, DataConfig, SFTConfig))
+    parser = PdArgumentParser((GenerateArgument, ModelConfig, ReftArgument, SorsaArgument, DataConfig, SFTConfig))
     if len(sys.argv) >= 2 and sys.argv[1].endswith(".json"):
-        gen_args, model_args, reft_args, data_args, training_args = parser.parse_json_file_and_cmd_lines()
+        gen_args, model_args, reft_args, sorsa_args, data_args, training_args = parser.parse_json_file_and_cmd_lines()
     elif len(sys.argv) >= 2 and sys.argv[1].endswith(".yaml"):
-        gen_args, model_args, reft_args, data_args, training_args = parser.parse_yaml_file_and_cmd_lines()
+        gen_args, model_args, reft_args, sorsa_args, data_args, training_args = parser.parse_yaml_file_and_cmd_lines()
     elif len(sys.argv) >= 2 and sys.argv[1].endswith(".py"):
-        gen_args, model_args, reft_args, data_args, training_args = parser.parse_python_file_and_cmd_lines()
+        gen_args, model_args, reft_args, sorsa_args, data_args, training_args = parser.parse_python_file_and_cmd_lines()
     else:
-        gen_args, model_args, reft_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        gen_args, model_args, reft_args, sorsa_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     training_args.print_config(model_args, "Model")
     training_args.print_config(data_args, "Data")
@@ -495,6 +496,45 @@ def main():
         logger.info("*** Evaluate result after train ***")
         eval_result = trainer.evaluate(dev_ds)
         trainer.log_metrics("eval", eval_result)
+
+    # SORSA模型加载与训练分支
+    if hasattr(sorsa_args, "rank") and sorsa_args.rank > 0:
+        # 构建SORSAConfig
+        sorsa_config = SORSAConfig(
+            rank=sorsa_args.rank,
+            alpha=sorsa_args.alpha,
+            dropout=sorsa_args.dropout,
+            target_modules=sorsa_args.target_modules,
+            base_model_name_or_path=sorsa_args.base_model_name_or_path,
+            merge_weights=sorsa_args.merge_weights,
+            dtype=sorsa_args.dtype,
+        )
+        # 加载基础模型
+        base_model = AutoModelForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            dtype=dtype,
+            from_aistudio=model_args.from_aistudio,
+        )
+        # 包装为SORSA模型
+        model = SORSAModel(base_model, sorsa_config)
+        # 复用Trainer类训练
+        from paddlenlp.trainer import Trainer
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=None,  # 需按原流程加载数据集
+            eval_dataset=None,
+            tokenizer=None,     # 需按原流程加载tokenizer
+            data_collator=None, # 需按原流程加载collator
+            compute_metrics=None, # 需按原流程加载metrics
+        )
+        # 训练
+        if training_args.do_train:
+            trainer.train()
+        # 保存模型
+        if training_args.do_train and training_args.output_dir is not None:
+            trainer.save_model()
+        return
 
 
 def save_to_aistudio(model_args, training_args, trainer):

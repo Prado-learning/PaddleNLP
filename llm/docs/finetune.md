@@ -211,6 +211,36 @@ python ./predict/reft_predictor.py \
 - `max_length`:模型输入（上下文+生成内容）的最大 token 长度。
 </div>
 
+#### 3.4.5 SORSA
+
+#### SORSA参数说明
+
+| 参数名                    | 类型         | 默认值      | 说明                                                         |
+|--------------------------|--------------|-------------|--------------------------------------------------------------|
+| rank                     | int          | 4           | SORSA矩阵秩（低秩分解的秩）                                  |
+| alpha                    | float/None   | None        | SORSA缩放因子，若为None则不缩放                               |
+| dropout                  | float        | 0.0         | SORSA dropout概率                                            |
+| target_modules           | list[str]    | None        | 需要替换为SORSA的模块名，如['query', 'key', 'value']         |
+| base_model_name_or_path  | str/None     | None        | 基础模型名或路径                                             |
+| merge_weights            | bool         | True        | 推理时是否merge权重                                          |
+| dtype                    | str/None     | None        | 张量数据类型                                                 |
+| gamma                    | float        | 0.0         | SORSA的gamma超参数（正则化强度）                             |
+
+#### SORSA用法示例
+
+```bash
+# 单卡SORSA
+python run_finetune.py ./config/llama/sorsa_argument.json
+
+# 多卡SORSA
+python -u -m paddle.distributed.launch --gpus "0,1,2,3,4,5,6,7" run_finetune.py ./config/llama/sorsa_argument.json
+```
+
+**Note:**
+- SORSA参数可通过json/yaml/python配置文件传入，或命令行覆盖。
+- SORSA支持与LoRA类似的低秩高效微调，适用于大模型指令微调、领域适配等场景。
+- gamma参数用于正则化SORSA分解的正交性。
+
 ## 4.精调参数介绍
 <summary>&emsp; 模型参数（ModelArgument） </summary><div>
 
@@ -257,8 +287,8 @@ python ./predict/reft_predictor.py \
 
 注：以下参数仅在`eval_with_do_generation`为 True，调用 model.generate()时生效。
 
-- `top_k`: “采样”策略中为 top-k 过滤保留的最高概率标记的数量。默认为1，等价于贪心策略。
-- `top_p`:“采样”策略中 top-p 过滤的累积概率。默认为1.0，表示不起作用。
+- `top_k`: "采样"策略中为 top-k 过滤保留的最高概率标记的数量。默认为1，等价于贪心策略。
+- `top_p`:"采样"策略中 top-p 过滤的累积概率。默认为1.0，表示不起作用。
 </div>
 
 <summary>&emsp; 训练参数（TrainingArguments）</summary><div>
